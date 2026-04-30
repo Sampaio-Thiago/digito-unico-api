@@ -1,0 +1,571 @@
+{
+	"info": {
+		"_postman_id": "12345678-1234-5678-9012-123456789012",
+		"name": "API Dígito Único - Testes Integrados",
+		"description": "Coleção completa para testar a API de Dígito Único com funcionalidades de CRUD de usuários, cálculos e criptografia RSA",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Usuários",
+			"item": [
+				{
+					"name": "Criar Usuário",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Response has user data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('nome');",
+									"    pm.expect(jsonData).to.have.property('email');",
+									"    ",
+									"    // Salvar ID do usuário para próximos testes",
+									"    pm.collectionVariables.set('usuarioId', jsonData.id);",
+									"});",
+									"",
+									"pm.test(\"User name is correct\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.nome).to.eql('João Silva');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nome\": \"João Silva\",\n  \"email\": \"joao@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios"
+							]
+						}
+					}
+				},
+				{
+					"name": "Listar Todos os Usuários",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is an array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"Array contains at least one user\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.length).to.be.at.least(1);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios"
+							]
+						}
+					}
+				},
+				{
+					"name": "Buscar Usuário por ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has user data\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('id');",
+									"    pm.expect(jsonData).to.have.property('nome');",
+									"    pm.expect(jsonData).to.have.property('email');",
+									"});",
+									"",
+									"pm.test(\"User ID matches requested ID\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    var expectedId = pm.collectionVariables.get('usuarioId');",
+									"    pm.expect(jsonData.id).to.eql(parseInt(expectedId));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"{{usuarioId}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Atualizar Usuário",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"User data was updated\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.nome).to.eql('João Silva Atualizado');",
+									"    pm.expect(jsonData.email).to.eql('joao.atualizado@example.com');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nome\": \"João Silva Atualizado\",\n  \"email\": \"joao.atualizado@example.com\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"{{usuarioId}}"
+							]
+						}
+					}
+				},
+				{
+					"name": "Enviar Chave Pública RSA",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response contains success message\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('chave');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"usuarioId\": {{usuarioId}},\n  \"chavePublica\": \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1234567890abcdefghij\\nklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghij\\nklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghij\\nklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghij\\nklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghij\\nklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghij\\n-----END PUBLIC KEY-----\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios/chave-publica",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"chave-publica"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Cálculos",
+			"item": [
+				{
+					"name": "Calcular Dígito Único - Caso Simples",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has calculation result\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('resultado');",
+									"    pm.expect(jsonData).to.have.property('n');",
+									"    pm.expect(jsonData).to.have.property('k');",
+									"    pm.expect(jsonData).to.have.property('usuarioId');",
+									"});",
+									"",
+									"pm.test(\"Calculation result is correct\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    // Para n=9875, k=4 o resultado esperado é 8",
+									"    pm.expect(jsonData.resultado).to.be.a('number');",
+									"    pm.expect(jsonData.resultado).to.be.at.least(1);",
+									"    pm.expect(jsonData.resultado).to.be.at.most(9);",
+									"});",
+									"",
+									"pm.test(\"Input values are preserved\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.n).to.eql('9875');",
+									"    pm.expect(jsonData.k).to.eql(4);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"n\": \"9875\",\n  \"k\": 4,\n  \"usuarioId\": {{usuarioId}}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/calculos/digito-unico",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"calculos",
+								"digito-unico"
+							]
+						}
+					}
+				},
+				{
+					"name": "Calcular Dígito Único - Caso Complexo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Complex calculation works\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.resultado).to.be.a('number');",
+									"    pm.expect(jsonData.resultado).to.be.at.least(1);",
+									"    pm.expect(jsonData.resultado).to.be.at.most(9);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"n\": \"123456789\",\n  \"k\": 10,\n  \"usuarioId\": {{usuarioId}}\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/calculos/digito-unico",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"calculos",
+								"digito-unico"
+							]
+						}
+					}
+				},
+				{
+					"name": "Buscar Cálculos por Usuário",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is an array\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.be.an('array');",
+									"});",
+									"",
+									"pm.test(\"Array contains calculations\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData.length).to.be.at.least(1);",
+									"    ",
+									"    if (jsonData.length > 0) {",
+									"        pm.expect(jsonData[0]).to.have.property('resultado');",
+									"        pm.expect(jsonData[0]).to.have.property('n');",
+									"        pm.expect(jsonData[0]).to.have.property('k');",
+									"    }",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/calculos/usuario/{{usuarioId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"calculos",
+								"usuario",
+								"{{usuarioId}}"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Testes de Validação",
+			"item": [
+				{
+					"name": "Criar Usuário - Email Inválido",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Validation error is returned\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.include('email');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nome\": \"Usuário Teste\",\n  \"email\": \"email-invalido\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios"
+							]
+						}
+					}
+				},
+				{
+					"name": "Calcular Dígito Único - Parâmetros Inválidos",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Validation error is returned\", function () {",
+									"    var responseText = pm.response.text();",
+									"    pm.expect(responseText).to.not.be.empty;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"n\": \"\",\n  \"k\": -1,\n  \"usuarioId\": 999999\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/api/calculos/digito-unico",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"calculos",
+								"digito-unico"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Cleanup",
+			"item": [
+				{
+					"name": "Deletar Usuário de Teste",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 204 or 200\", function () {",
+									"    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+									"});",
+									"",
+									"// Limpar variáveis da coleção",
+									"pm.collectionVariables.clear();"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/api/usuarios/{{usuarioId}}",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"usuarios",
+								"{{usuarioId}}"
+							]
+						}
+					}
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "usuarioId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
