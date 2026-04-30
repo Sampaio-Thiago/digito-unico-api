@@ -1,21 +1,28 @@
-                                 openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: API Dígito Único
   description: |
     API REST para cálculo de dígito único com funcionalidades avançadas:
 
     ## Funcionalidades Principais
-    - ✨ **Cálculo de Dígito Único**: Algoritmo otimizado para calcular o dígito único
-    - 👥 **Gestão de Usuários**: CRUD completo de usuários
-    - 🔒 **Criptografia RSA**: Suporte para chaves públicas RSA
-    - 🚀 **Cache Inteligente**: Sistema de cache para otimizar cálculos
-    - 📊 **Histórico**: Armazenamento de todos os cálculos realizados
+    - **Cálculo de Dígito Único**: Algoritmo otimizado para calcular o dígito único
+    - **Gestão de Usuários**: CRUD completo de usuários
+    - **Criptografia RSA**: Dados de usuário armazenados criptografados com chave pública RSA
+    - **Cache Inteligente**: Cache LRU com capacidade de 10 entradas para otimizar cálculos
+    - **Histórico**: Armazenamento de todos os cálculos realizados
 
     ## Algoritmo
-    O algoritmo concatena um número `n` exatamente `k` vezes e calcula o dígito único:
-    1. Concatena: "123" + k=3 → "123123123"
-    2. Soma dígitos: 1+2+3+1+2+3+1+2+3 = 18
-    3. Repete até obter um dígito: 1+8 = 9
+    Dados `n` e `k`, forma-se `P` concatenando `n` exatamente `k` vezes e calcula-se o dígito único de `P`:
+    - Se `P` tem um único dígito, ele é o resultado
+    - Caso contrário, soma-se todos os dígitos e repete o processo
+
+    **Exemplo:** n="9875", k=4
+    - Soma dos dígitos de P: 9+8+7+5 × 4 = 116
+    - digito_unico(116) → 1+1+6 = 8
+
+    ## Fluxo de Criação de Usuário
+    1. `POST /api/usuarios/chave-publica` — registra a chave pública RSA (cria o usuário, retorna o `id`)
+    2. `POST /api/usuarios` — salva nome e email usando o `id` retornado (dados são criptografados)
 
     ## Autenticação
     Esta API não requer autenticação para fins de demonstração.
@@ -31,8 +38,6 @@ info:
 servers:
   - url: http://localhost:8080
     description: Servidor de Desenvolvimento
-  - url: https://api.digitounico.com
-    description: Servidor de Produção
 
 tags:
   - name: Usuários
@@ -40,34 +45,60 @@ tags:
   - name: Cálculos
     description: Operações de cálculo de dígito único
   - name: Criptografia
-    description: Operações relacionadas à criptografia RSA
+    description: Registro de chave pública RSA
 
 paths:
+  /api/usuarios/chave-publica:
+    post:
+      tags:
+        - Criptografia
+      summary: Registrar chave pública RSA
+      description: |
+        Cria um novo usuário registrando sua chave pública RSA.
+        Retorna o `id` do usuário criado, necessário para o próximo passo (`POST /api/usuarios`).
+
+        A chave pública deve estar em formato **Base64 puro (DER/X.509)**, sem cabeçalhos PEM.
+
+        Geração via OpenSSL:
+        ```
+        openssl genrsa -out privada.pem 2048
+        openssl rsa -in privada.pem -pubout -outform DER | base64 -w 0
+        ```
+      operationId: registrarChavePublica
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChavePublicaRequest'
+            example:
+              chavePublica: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+      responses:
+        '201':
+          description: Usuário criado com chave pública registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+              example:
+                id: 1
+                nomeCriptografado: null
+                emailCriptografado: null
+                chavePublica: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+        '400':
+          description: Chave pública inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/usuarios:
     get:
       tags:
         - Usuários
       summary: Listar todos os usuários
-      description: Retorna uma lista paginada de todos os usuários cadastrados no sistema
+      description: Retorna uma lista com todos os usuários cadastrados no sistema
       operationId: listarUsuarios
-      parameters:
-        - name: page
-          in: query
-          description: Número da página (começando em 0)
-          required: false
-          schema:
-            type: integer
-            default: 0
-            minimum: 0
-        - name: size
-          in: query
-          description: Tamanho da página
-          required: false
-          schema:
-            type: integer
-            default: 20
-            minimum: 1
-            maximum: 100
       responses:
         '200':
           description: Lista de usuários retornada com sucesso
@@ -79,27 +110,19 @@ paths:
                   $ref: '#/components/schemas/Usuario'
               example:
                 - id: 1
-                  nome: "João Silva"
-                  email: "joao@example.com"
-                  dataCriacao: "2024-01-15T10:30:00Z"
-                  chavePublicaRsa: "-----BEGIN PUBLIC KEY-----\n..."
-                - id: 2
-                  nome: "Maria Santos"
-                  email: "maria@example.com"
-                  dataCriacao: "2024-01-16T14:20:00Z"
-                  chavePublicaRsa: null
-        '500':
-          description: Erro interno do servidor
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                  nomeCriptografado: "base64encodedEncryptedName=="
+                  emailCriptografado: "base64encodedEncryptedEmail=="
+                  chavePublica: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
 
     post:
       tags:
         - Usuários
-      summary: Criar novo usuário
-      description: Cria um novo usuário no sistema
+      summary: Salvar nome e email do usuário
+      description: |
+        Salva o nome e o email de um usuário já existente (criado via `POST /api/usuarios/chave-publica`).
+        Os dados são criptografados com a chave pública RSA registrada anteriormente.
+
+        **Pré-requisito:** o usuário deve ter sido criado via `POST /api/usuarios/chave-publica` e o `id` retornado deve ser informado no corpo da requisição.
       operationId: criarUsuario
       requestBody:
         required: true
@@ -108,23 +131,23 @@ paths:
             schema:
               $ref: '#/components/schemas/UsuarioRequest'
             example:
+              id: 1
               nome: "João Silva"
               email: "joao@example.com"
       responses:
         '201':
-          description: Usuário criado com sucesso
+          description: Dados do usuário salvos e criptografados com sucesso
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Usuario'
               example:
                 id: 1
-                nome: "João Silva"
-                email: "joao@example.com"
-                dataCriacao: "2024-01-15T10:30:00Z"
-                chavePublicaRsa: null
+                nomeCriptografado: "base64encodedEncryptedName=="
+                emailCriptografado: "base64encodedEncryptedEmail=="
+                chavePublica: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
         '400':
-          description: Dados de entrada inválidos
+          description: Dados inválidos ou usuário não encontrado
           content:
             application/json:
               schema:
@@ -136,6 +159,57 @@ paths:
                     message: "Email deve ter formato válido"
                   - field: "nome"
                     message: "Nome é obrigatório"
+
+  /api/usuarios/{id}/descriptografar:
+    post:
+      tags:
+        - Criptografia
+      summary: Descriptografar dados do usuário
+      description: |
+        Retorna nome e email em texto claro usando a chave privada RSA do cliente.
+
+        A chave privada deve estar em formato **Base64 puro (DER/PKCS8)**, sem cabeçalhos PEM.
+
+        Extração via OpenSSL:
+        ```
+        openssl pkcs8 -topk8 -inform PEM -outform DER -in privada.pem -nocrypt | base64 -w 0
+        ```
+      operationId: descriptografarDados
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID único do usuário
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChavePrivadaRequest'
+            example:
+              chavePrivada: "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC..."
+      responses:
+        '200':
+          description: Dados descriptografados com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsuarioDTO'
+              example:
+                id: 1
+                nome: "João Silva"
+                email: "joao@example.com"
+        '400':
+          description: Chave privada inválida ou incompatível com a chave pública registrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Usuário não encontrado
 
   /api/usuarios/{id}:
     get:
@@ -174,7 +248,9 @@ paths:
       tags:
         - Usuários
       summary: Atualizar usuário
-      description: Atualiza os dados de um usuário existente
+      description: |
+        Atualiza nome e email de um usuário existente.
+        Os novos dados são criptografados com a chave pública RSA do usuário.
       operationId: atualizarUsuario
       parameters:
         - name: id
@@ -189,7 +265,10 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UsuarioRequest'
+              $ref: '#/components/schemas/UsuarioAtualizarRequest'
+            example:
+              nome: "João Silva Atualizado"
+              email: "joao.atualizado@example.com"
       responses:
         '200':
           description: Usuário atualizado com sucesso
@@ -230,64 +309,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/usuarios/chave-publica:
-    post:
-      tags:
-        - Criptografia
-      summary: Enviar chave pública RSA
-      description: |
-        Envia e armazena a chave pública RSA de um usuário para operações de criptografia.
-        A chave deve estar no formato PEM padrão.
-      operationId: enviarChavePublica
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ChavePublicaRequest'
-            example:
-              usuarioId: 1
-              chavePublica: |
-                -----BEGIN PUBLIC KEY-----
-                MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1234567890abcdefghij
-                klmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890abcdefghij
-                -----END PUBLIC KEY-----
-      responses:
-        '200':
-          description: Chave pública armazenada com sucesso
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                    example: "Chave pública armazenada com sucesso"
-        '400':
-          description: Chave pública inválida ou usuário não encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
   /api/calculos/digito-unico:
     post:
       tags:
         - Cálculos
       summary: Calcular dígito único
       description: |
-        Calcula o dígito único de um número concatenado k vezes.
+        Calcula o dígito único de um número `n` concatenado `k` vezes.
 
         **Algoritmo:**
-        1. Concatena o número `n` exatamente `k` vezes
-        2. Soma todos os dígitos do número resultante
+        1. Forma P = n concatenado k vezes
+        2. Soma todos os dígitos de P
         3. Se o resultado tiver mais de um dígito, repete o processo
-        4. Retorna o dígito único final (1-9)
+        4. Retorna o dígito único final (0-9)
 
-        **Exemplo:**
-        - n="123", k=2 → "123123"
-        - Soma: 1+2+3+1+2+3 = 12
-        - Soma: 1+2 = 3 (resultado final)
+        **Exemplo:** n="9875", k=4
+        - Soma: (9+8+7+5) × 4 = 116
+        - digito_unico(116) → 1+1+6 = 8
+
+        **Parâmetros conforme especificação:**
+        - `n`: string representando um inteiro (1 ≤ n ≤ 10^1000000)
+        - `k`: número de concatenações (1 ≤ k ≤ 10^5)
+
+        Resultados são armazenados em cache LRU (máximo 10 entradas). O campo `fromCache` indica se o resultado foi obtido do cache.
       operationId: calcularDigitoUnico
       requestBody:
         required: true
@@ -301,13 +345,11 @@ paths:
                 value:
                   n: "123"
                   k: 2
-                  usuarioId: 1
-              exemplo_complexo:
-                summary: Exemplo complexo
+              exemplo_com_resultado_8:
+                summary: Exemplo da especificação (resultado esperado = 8)
                 value:
                   n: "9875"
                   k: 4
-                  usuarioId: 1
       responses:
         '200':
           description: Cálculo realizado com sucesso
@@ -315,16 +357,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/CalculoResponse'
-              examples:
-                sucesso:
-                  summary: Resposta de sucesso
-                  value:
-                    resultado: 8
-                    n: "9875"
-                    k: 4
-                    usuarioId: 1
-                    timestamp: "2024-01-15T10:30:00Z"
-                    fromCache: false
+              example:
+                n: "9875"
+                k: 4
+                digitoUnico: 8
+                dataCalculo: "2024-01-15T10:30:00"
+                fromCache: false
         '400':
           description: Parâmetros inválidos
           content:
@@ -335,9 +373,9 @@ paths:
                 message: "Parâmetros inválidos"
                 errors:
                   - field: "n"
-                    message: "Deve conter apenas dígitos"
+                    message: "Parâmetro n deve conter apenas dígitos"
                   - field: "k"
-                    message: "Deve ser maior que 0"
+                    message: "Parâmetro k deve ser maior que 0"
 
   /api/calculos/usuario/{usuarioId}:
     get:
@@ -354,15 +392,6 @@ paths:
           schema:
             type: integer
             format: int64
-        - name: limit
-          in: query
-          description: Número máximo de resultados
-          required: false
-          schema:
-            type: integer
-            default: 50
-            minimum: 1
-            maximum: 100
       responses:
         '200':
           description: Histórico de cálculos retornado com sucesso
@@ -376,31 +405,94 @@ paths:
                 - id: 1
                   n: "123"
                   k: 2
-                  resultado: 3
-                  usuarioId: 1
-                  timestamp: "2024-01-15T10:30:00Z"
+                  digitoUnico: 3
+                  dataCalculo: "2024-01-15T10:30:00"
                 - id: 2
                   n: "9875"
                   k: 4
-                  resultado: 8
-                  usuarioId: 1
-                  timestamp: "2024-01-15T10:35:00Z"
-        '404':
-          description: Usuário não encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                  digitoUnico: 8
+                  dataCalculo: "2024-01-15T10:35:00"
 
 components:
   schemas:
     Usuario:
       type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador único do usuário
+          example: 1
+        nomeCriptografado:
+          type: string
+          nullable: true
+          description: Nome do usuário criptografado com a chave pública RSA (Base64)
+          example: "base64encodedEncryptedName=="
+        emailCriptografado:
+          type: string
+          nullable: true
+          description: Email do usuário criptografado com a chave pública RSA (Base64)
+          example: "base64encodedEncryptedEmail=="
+        chavePublica:
+          type: string
+          nullable: true
+          description: Chave pública RSA do usuário em formato Base64 puro (DER/X.509)
+          example: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
+
+    UsuarioRequest:
+      type: object
       required:
         - id
         - nome
         - email
-        - dataCriacao
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ID do usuário retornado em POST /api/usuarios/chave-publica
+          example: 1
+        nome:
+          type: string
+          description: Nome completo do usuário (será criptografado)
+          minLength: 2
+          maxLength: 100
+          example: "João Silva"
+        email:
+          type: string
+          format: email
+          description: Email do usuário (será criptografado)
+          example: "joao@example.com"
+
+    UsuarioAtualizarRequest:
+      type: object
+      required:
+        - nome
+        - email
+      properties:
+        nome:
+          type: string
+          description: Novo nome do usuário (será criptografado)
+          minLength: 2
+          maxLength: 100
+          example: "João Silva Atualizado"
+        email:
+          type: string
+          format: email
+          description: Novo email do usuário (será criptografado)
+          example: "joao.atualizado@example.com"
+
+    ChavePrivadaRequest:
+      type: object
+      required:
+        - chavePrivada
+      properties:
+        chavePrivada:
+          type: string
+          description: Chave privada RSA em formato Base64 puro (DER/PKCS8), sem cabeçalhos PEM
+          example: "MIIEvQIBADANBgkqhkiG9w0BAQEFAASC..."
+
+    UsuarioDTO:
+      type: object
       properties:
         id:
           type: integer
@@ -409,108 +501,51 @@ components:
           example: 1
         nome:
           type: string
-          description: Nome completo do usuário
-          minLength: 2
-          maxLength: 100
+          description: Nome do usuário em texto claro (descriptografado)
           example: "João Silva"
         email:
           type: string
-          format: email
-          description: Email único do usuário
-          example: "joao@example.com"
-        dataCriacao:
-          type: string
-          format: date-time
-          description: Data e hora de criação do usuário
-          example: "2024-01-15T10:30:00Z"
-        chavePublicaRsa:
-          type: string
-          nullable: true
-          description: Chave pública RSA do usuário em formato PEM
-          example: "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0B..."
-
-    UsuarioRequest:
-      type: object
-      required:
-        - nome
-        - email
-      properties:
-        nome:
-          type: string
-          description: Nome completo do usuário
-          minLength: 2
-          maxLength: 100
-          example: "João Silva"
-        email:
-          type: string
-          format: email
-          description: Email único do usuário
+          description: Email do usuário em texto claro (descriptografado)
           example: "joao@example.com"
 
     ChavePublicaRequest:
       type: object
       required:
-        - usuarioId
         - chavePublica
       properties:
-        usuarioId:
-          type: integer
-          format: int64
-          description: ID do usuário proprietário da chave
-          minimum: 1
-          example: 1
         chavePublica:
           type: string
-          description: Chave pública RSA em formato PEM
-          pattern: '^-----BEGIN PUBLIC KEY-----.*-----END PUBLIC KEY-----$'
-          example: |
-            -----BEGIN PUBLIC KEY-----
-            MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1234567890abcdefghij
-            -----END PUBLIC KEY-----
+          description: Chave pública RSA em formato Base64 puro (DER/X.509), sem cabeçalhos PEM
+          example: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA..."
 
     CalculoRequest:
       type: object
       required:
         - n
         - k
-        - usuarioId
       properties:
         n:
           type: string
-          description: Número para concatenação (apenas dígitos)
-          pattern: '^[0-9]+$'
+          description: "Número para cálculo (apenas dígitos). Conforme especificação: 1 ≤ n ≤ 10^1000000"
+          pattern: '^\d+$'
           minLength: 1
-          maxLength: 1000000
           example: "9875"
         k:
           type: integer
-          description: Número de concatenações
+          description: "Número de concatenações. Conforme especificação: 1 ≤ k ≤ 10^5"
           minimum: 1
-          maximum: 1000000
+          maximum: 100000
           example: 4
         usuarioId:
           type: integer
           format: int64
-          description: ID do usuário que realiza o cálculo
+          description: ID do usuário (opcional) — associa o cálculo ao histórico do usuário
           minimum: 1
           example: 1
 
     CalculoResponse:
       type: object
-      required:
-        - resultado
-        - n
-        - k
-        - usuarioId
-        - timestamp
-        - fromCache
       properties:
-        resultado:
-          type: integer
-          description: Dígito único calculado (1-9)
-          minimum: 1
-          maximum: 9
-          example: 8
         n:
           type: string
           description: Número original usado no cálculo
@@ -519,30 +554,24 @@ components:
           type: integer
           description: Número de concatenações realizadas
           example: 4
-        usuarioId:
+        digitoUnico:
           type: integer
-          format: int64
-          description: ID do usuário que realizou o cálculo
-          example: 1
-        timestamp:
+          description: Dígito único calculado (0-9)
+          minimum: 0
+          maximum: 9
+          example: 8
+        dataCalculo:
           type: string
           format: date-time
           description: Data e hora do cálculo
-          example: "2024-01-15T10:30:00Z"
+          example: "2024-01-15T10:30:00"
         fromCache:
           type: boolean
-          description: Indica se o resultado foi obtido do cache
+          description: Indica se o resultado foi obtido do cache LRU
           example: false
 
     Resultado:
       type: object
-      required:
-        - id
-        - n
-        - k
-        - resultado
-        - usuarioId
-        - timestamp
       properties:
         id:
           type: integer
@@ -557,28 +586,20 @@ components:
           type: integer
           description: Número de concatenações
           example: 4
-        resultado:
+        digitoUnico:
           type: integer
           description: Dígito único calculado
-          minimum: 1
+          minimum: 0
           maximum: 9
           example: 8
-        usuarioId:
-          type: integer
-          format: int64
-          description: ID do usuário proprietário do cálculo
-          example: 1
-        timestamp:
+        dataCalculo:
           type: string
           format: date-time
           description: Data e hora do cálculo
-          example: "2024-01-15T10:30:00Z"
+          example: "2024-01-15T10:30:00"
 
     ErrorResponse:
       type: object
-      required:
-        - message
-        - timestamp
       properties:
         message:
           type: string
@@ -596,10 +617,6 @@ components:
 
     ValidationErrorResponse:
       type: object
-      required:
-        - message
-        - timestamp
-        - errors
       properties:
         message:
           type: string
@@ -625,30 +642,8 @@ components:
                 description: Mensagem específica do erro
                 example: "Email deve ter formato válido"
 
-  examples:
-    UsuarioExemplo:
-      summary: Exemplo de usuário
-      value:
-        nome: "João Silva"
-        email: "joao@example.com"
-
-    CalculoExemplo:
-      summary: Exemplo de cálculo
-      value:
-        n: "9875"
-        k: 4
-        usuarioId: 1
-
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: |
-        Autenticação via token JWT (não implementada nesta versão de demonstração)
-
 security: []
 
 externalDocs:
-  description: Documentação adicional no GitHub
-  url: https://github.com/exemplo/digito-unico-api
+  description: Repositório no GitHub
+  url: https://github.com/Sampaio-Thiago/digito-unico-api

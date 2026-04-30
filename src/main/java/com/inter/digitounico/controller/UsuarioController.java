@@ -1,5 +1,6 @@
 package com.inter.digitounico.controller;
 
+import com.inter.digitounico.dto.ChavePrivadaRequest;
 import com.inter.digitounico.dto.ChavePublicaRequest;
 import com.inter.digitounico.dto.UsuarioDTO;
 import com.inter.digitounico.entity.Usuario;
@@ -66,6 +67,23 @@ public class UsuarioController {
         try {
             Usuario usuario = usuarioService.atualizarUsuario(id, usuarioDTO);
             return ResponseEntity.ok(usuario);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{id}/descriptografar")
+    @Operation(summary = "Descriptografar dados do usuário",
+               description = "Retorna nome e email em texto claro usando a chave privada RSA do cliente. A chave privada deve estar em formato Base64 puro (DER/PKCS8).")
+    public ResponseEntity<UsuarioDTO> descriptografarDados(@PathVariable Long id,
+                                                           @Valid @RequestBody ChavePrivadaRequest request) {
+        try {
+            Usuario usuario = usuarioService.buscarPorId(id)
+                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+            UsuarioDTO dto = usuarioService.descriptografarDados(usuario, request.getChavePrivada());
+            return ResponseEntity.ok(dto);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
