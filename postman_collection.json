@@ -352,7 +352,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"n\": \"9875\",\n  \"k\": 4\n}"
+							"raw": "{\n  \"n\": \"9875\",\n  \"k\": 4,\n  \"usuarioId\": {{usuarioId}}\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/calculos/digito-unico",
@@ -402,7 +402,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"n\": \"9875\",\n  \"k\": 4\n}"
+							"raw": "{\n  \"n\": \"9875\",\n  \"k\": 4,\n  \"usuarioId\": {{usuarioId}}\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/calculos/digito-unico",
@@ -449,7 +449,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"n\": \"123456789\",\n  \"k\": 10\n}"
+							"raw": "{\n  \"n\": \"123456789\",\n  \"k\": 10,\n  \"usuarioId\": {{usuarioId}}\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/calculos/digito-unico",
